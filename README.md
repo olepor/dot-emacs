@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 - [About](#sec-1)
 - [Configurations](#sec-2)
   - [Meta](#sec-2-1)
@@ -1278,3 +1279,6 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
+=======
+# dot-emacs
+>>>>>>> 39545b529d1eafc182e9368174d6da59951c4714
