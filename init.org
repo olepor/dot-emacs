@@ -65,7 +65,7 @@
      (require 'package)
      (setq package-enable-at-startup)
      (package-initialize)
-     (byte-recompile-directory (expand-file-name "~/.emacs.d") 0) ;; Byte
+    ;; (byte-recompile-directory (expand-file-name "~/.emacs.d") 0) ;; Byte
      ;; compiles everything in my emacs.d directory, slow, but needed to get rid
      ;; of the swift-mode-error
    #+END_SRC
@@ -267,8 +267,7 @@ Set the limitations for line length and tabs vs spaces etc
      (require 'auto-complete-config)
      (ac-config-default)
    #+END_SRC
-
-      
+ 
 ** General code hooks
      
    For folding code we use the commands
@@ -341,6 +340,11 @@ Set the limitations for line length and tabs vs spaces etc
 
      (ad-activate 'compilation-start)
    #+END_SRC
+
+   Add a function to bind the revert-buffer function
+   #+BEGIN_SRC emacs-lisp
+     (global-set-key (kbd "C-x C->") 'revert-buffer)
+   #+END_SRC
    
 ** Compilation
    Add a compile hook for all c-like languages
@@ -386,9 +390,9 @@ Set the limitations for line length and tabs vs spaces etc
      (add-hook 'java-mode-hook 'java-setup)
    #+END_SRC
 
-** My own Java-hooks code
+** My own Java-hooks
     
-    Runs the current java budder in the emacs terminal
+    Runs the current java buffer in the emacs terminal
 
     #+BEGIN_SRC emacs-lisp
       (defun run-java-buffer ()
@@ -408,7 +412,16 @@ Set the limitations for line length and tabs vs spaces etc
    #+BEGIN_SRC emacs-lisp
      (add-hook 'java-mode-hook 'java-string-replace)
    #+END_SRC 
-    
+** C
+   As we have already made sure that the yasnippet and auto-complete
+   packages are loaded, 
+
+   #+BEGIN_SRC emacs-lisp
+     (add-hook 'c-mode--hook
+       (lambda() 
+         (local-set-key  (kbd "C-c o") 'ff-find-other-file)))
+   #+END_SRC
+
 ** Python
    
    Set the version to use, currently 3.4
@@ -467,7 +480,7 @@ Set the limitations for line length and tabs vs spaces etc
    
    Add an abbrev table for auto-complete (?)
 
-   You can run the command `swift-mode-run-repl' with =C-c C-z=, to compile
+   You can run the command `swift-mode-run-repl' with =C-c C-z=
 
    #+BEGIN_SRC emacs-lisp
      (add-hook 'swift-mode-hook 'autopair-on)
@@ -479,6 +492,7 @@ Set the limitations for line length and tabs vs spaces etc
    #+BEGIN_SRC emacs-lisp
      (add-to-list 'ac-modes 'swift-mode)
    #+END_SRC
+
 
 ** XCode Integration
 
@@ -543,8 +557,8 @@ Set the limitations for line length and tabs vs spaces etc
    Changes the default font
  
     #+BEGIN_SRC emacs-lisp
-      (if (member "Inconsolata" (font-family-list))
-        (set-face-attribute 'default nil :font "Inconsolata-13")
+      (if (member "Source Code Pro" (font-family-list))
+        (set-face-attribute 'default nil :font "Source Code Pro-13")
       (set-frame-parameter nil 'font "DejaVu Sans Mono-12"))
 
    #+END_SRC
@@ -552,3 +566,4 @@ Set the limitations for line length and tabs vs spaces etc
 
   
 
+   
