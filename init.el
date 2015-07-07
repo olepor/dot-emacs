@@ -1,135 +1,452 @@
-;;; init.el --- Prelude's configuration entry point.
-;;
-;; Copyright (c) 2011 Bozhidar Batsov
-;;
-;; Author: Bozhidar Batsov <bozhidar@batsov.com>
-;; URL: http://batsov.com/prelude
-;; Version: 1.0.0
-;; Keywords: convenience
 
-;; This file is not part of GNU Emacs.
+;; Meta
 
-;;; Commentary:
+;;    Emacs can only load =.el=-files. We can use =C-c C-v t= to run
+;;    =org-babel-tangle=, which extracts the code blocks from the current =.org= file
+;;    into a =.el= file.
 
-;; This file simply sets up the default load path and requires
-;; the various modules defined within Emacs Prelude.
+;;    In order to avoid doing this each time over, every time a change is made, we can add a
+;;    function to the =after-save-hook= ensuring that we always tangle and byte-compile 
+;;    the =.org= document.
 
-;;; License:
+;;    (Courtesy of Lars Tveito)
 
-;; This program is free software; you can redistribute it and/or
-;; modify it under the terms of the GNU General Public License
-;; as published by the Free Software Foundation; either version 3
-;; of the License, or (at your option) any later version.
-;;
-;; This program is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
-;;
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to the
-;; Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-;; Boston, MA 02110-1301, USA.
+(defun tangle-init ()
+  "If the current buffer is 'init.org' the code-blocks are
+    tangled, and the tangled file is compiled."
+  (when (equal (buffer-file-name)
+               (expand-file-name (concat user-emacs-directory "init.org")))
+    ;; Avoid running hooks when tangling.
+    (let ((prog-mode-hook nil))
+      (org-babel-tangle)
+      (byte-compile-file (concat user-emacs-directory "init.el")))))
 
-;;; Code:
-(defvar current-user
-      (getenv
-       (if (equal system-type 'windows-nt) "USERNAME" "USER")))
+(add-hook 'after-save-hook 'tangle-init)
 
-(message "Prelude is powering up... Be patient, Master %s!" current-user)
+;; Packages
+   
+;;    Managing extensions for Emacs is simplified using =package= which is built in to
+;;    Emacs 24 and newer. To load downloaded packages we need to initialise =package=.
+;;    =cl= is a libarary that contains many functions from Common Lisp, and comes in handy
+;;    quite often, so we want to make sure it's loaded, along with =package=, which is obviously 
+;;    needed.
 
-(when (version< emacs-version "24.1")
-  (error "Prelude requires at least GNU Emacs 24.1, but you're running %s" emacs-version))
+(setq package-archives
+      '(("gnu" . "http://elpa.gnu.org/packages/")
+        ("org" . "http://orgmode.org/elpa/")
+        ("MELPA" . "http://melpa.milkbox.net/packages/")))
 
-;; Always load newest byte code
-(setq load-prefer-newer t)
+;; #+RESULTS:
 
-(defvar prelude-dir (file-name-directory load-file-name)
-  "The root dir of the Emacs Prelude distribution.")
-(defvar prelude-core-dir (expand-file-name "core" prelude-dir)
-  "The home of Prelude's core functionality.")
-(defvar prelude-modules-dir (expand-file-name  "modules" prelude-dir)
-  "This directory houses all of the built-in Prelude modules.")
-(defvar prelude-personal-dir (expand-file-name "personal" prelude-dir)
-  "This directory is for your personal configuration.
+(require 'cl)
+ (require 'package)
+ (setq package-enable-at-startup)
+ (package-initialize)
+;; (byte-recompile-directory (expand-file-name "~/.emacs.d") 0) ;; Byte
+ ;; compiles everything in my emacs.d directory, slow, but needed to get rid
+ ;; of the swift-mode-error
 
-Users of Emacs Prelude are encouraged to keep their personal configuration
-changes in this directory.  All Emacs Lisp files there are loaded automatically
-by Prelude.")
-(defvar prelude-personal-preload-dir (expand-file-name "preload" prelude-personal-dir)
-  "This directory is for your personal configuration, that you want loaded before Prelude.")
-(defvar prelude-vendor-dir (expand-file-name "vendor" prelude-dir)
-  "This directory houses packages that are not yet available in ELPA (or MELPA).")
-(defvar prelude-savefile-dir (expand-file-name "savefile" prelude-dir)
-  "This folder stores all the automatically generated save/history-files.")
-(defvar prelude-modules-file (expand-file-name "prelude-modules.el" prelude-dir)
-  "This files contains a list of modules that will be loaded by Prelude.")
+;; Define whether or not the newest version of a package is installed
 
-(unless (file-exists-p prelude-savefile-dir)
-  (make-directory prelude-savefile-dir))
+(let* ((packages '(auto-complete
+                   auto-compile ;; Automatically compiles an elisp file
+                   ido-vertical-mode
+                   monokai-theme ;; A fruity dark theme, originally from sublime ( I think )...
+                   leuven-theme ;; A nice light theme for daytime coding
+                   anchored-transpose ;; Fancy text editing
+                   expand-region ;; Expands a region based on ( " ...
+                   undo-tree ;; visually represents your undo's
+                   autopair ;; Highlights matching parantheses
+                   auto-package-update ;; Automatically update packages at a certain frequency. e.g once a week
+                   centered-window-mode ;; Centers the text if only one
+                   ;; window is showing
+                   jedi ;; Python auto-completion for emacs
+                   magit ;; Control git from emacs
+                   org ;;Outline based notes and management organizer
+                   swift-mode ;; Major mode for Apple's swift
+                   ;; programming language
+                   ;;  flycheck ;; On the fly spell checking for emacs ;; 
+                   ))
+       (packages (remove-if 'package-installed-p packages)))
+  (when packages
+    (package-refresh-contents)
+    (mapc 'package-install packages)))
 
-(defun prelude-add-subfolders-to-load-path (parent-dir)
- "Add all level PARENT-DIR subdirs to the `load-path'."
- (dolist (f (directory-files parent-dir))
-   (let ((name (expand-file-name f parent-dir)))
-     (when (and (file-directory-p name)
-                (not (string-prefix-p "." f)))
-       (add-to-list 'load-path name)
-       (prelude-add-subfolders-to-load-path name)))))
+;; Add theme list from elpa directory
 
-;; add Prelude's directories to Emacs's `load-path'
-(add-to-list 'load-path prelude-core-dir)
-(add-to-list 'load-path prelude-modules-dir)
-(add-to-list 'load-path prelude-vendor-dir)
-(prelude-add-subfolders-to-load-path prelude-vendor-dir)
+(add-to-list 'custom-theme-load-path "~/.emacs.d/themes")
 
-;; reduce the frequency of garbage collection by making it happen on
-;; each 50MB of allocated data (the default is on every 0.76MB)
-(setq gc-cons-threshold 50000000)
+;; Enable ido, which changes the way files are selected in the minibuffer, everywhere
+;;    and at last show it vertically
 
-;; warn when opening files bigger than 100MB
-(setq large-file-warning-threshold 100000000)
+(ido-mode 1)
+(ido-everywhere 1)
+(ido-vertical-mode 1)
 
-;; preload the personal settings from `prelude-personal-preload-dir'
-(when (file-exists-p prelude-personal-preload-dir)
-  (message "Loading personal configuration files in %s..." prelude-personal-preload-dir)
-  (mapc 'load (directory-files prelude-personal-preload-dir 't "^[^#].*el$")))
+;; Enable the expand region package
 
-(message "Loading Prelude's core...")
+(global-set-key (kbd "C-=") 'er/expand-region)
 
-;; the core stuff
-(require 'prelude-packages)
-(require 'prelude-custom)  ;; Needs to be loaded before core, editor and ui
-(require 'prelude-ui)
-(require 'prelude-core)
-(require 'prelude-mode)
-(require 'prelude-editor)
-(require 'prelude-global-keybindings)
+;; Set the undo-tree-mode globally
 
-;; OSX specific settings
-(when (eq system-type 'darwin)
-  (require 'prelude-osx))
+(global-undo-tree-mode 1)
 
-(message "Loading Prelude's modules...")
+;; emacs-lisp
+   
+;;    Set the autopair parenthesis on
 
-;; the modules
-(if (file-exists-p prelude-modules-file)
-    (load prelude-modules-file)
-  (message "Missing modules file %s" prelude-modules-file)
-  (message "You can get started by copying the bundled example file"))
+(require 'autopair)
+(defvar autopair-modes '(r-mode java-mode))
+(defun turn-on-autopair-mode ()
+  (autopair-mode 1))
+(dolist (mode autopair-modes) (add-hook (intern (concat (symbol-name mode) "-hook")) 'turn-on-autopair-mode))
 
-;; config changes made through the customize UI will be store here
-(setq custom-file (expand-file-name "custom.el" prelude-personal-dir))
+;; Set the auto-update-packages interval to 7 days. Add =(auto-package-update-maybe)= for å skru på
 
-;; load the personal settings (this includes `custom-file')
-(when (file-exists-p prelude-personal-dir)
-  (message "Loading personal configuration files in %s..." prelude-personal-dir)
-  (mapc 'load (directory-files prelude-personal-dir 't "^[^#].*el$")))
+(require 'auto-package-update)
+(setq auto-package-update-interval 7)
 
-(message "Prelude is ready to do thy bidding, Master %s!" current-user)
+;; #+RESULTS:
 
-(prelude-eval-after-init
- ;; greet the use with some useful tip
- (run-at-time 5 nil 'prelude-tip-of-the-day))
+(require 'centered-window-mode)
+(centered-window-mode t)
+(visual-line-mode t)
 
-;;; init.el ends here
+;; Simple Emacs setup
+
+;;    Loops a list of everything we wish to enable (e.g set to 1)
+
+(dolist (mode '(show-paren-mode ;; Shows matching parenthesis
+                show-column-number ;; Show column number in mode line / Genius
+                delete-selection-mode ;; Deletes marked text
+                global-undo-tree-mode ;; Sets the undo tree mode to global
+                auto-compile-on-load-mode ;; Auto compiles elisp on load
+                )) 
+  (when (fboundp mode)
+    (funcall mode 1)))
+
+(dolist (mode '(blink-cursor-mode ;; Disables the blinking cursor
+                menu-bar-mode ;; Removes the toolbar
+                tool-bar-mode ;; Turns the toolbar off
+                scroll-bar-mode ;; NO SCROLLBARS
+                ))
+    (funcall mode 0))
+
+;; Answer with y/n instead of yes or no
+
+(fset 'yes-or-no-p 'y-or-n-p)
+
+;; Make a keybind to kill the current buffer, and bind it to =C-x C-k=
+
+(global-set-key (kbd "C-x C-k") 'kill-this-buffer)
+
+;; Comment or uncomment a region
+
+(global-set-key (kbd "C-;") 'comment-or-uncomment-region)
+
+;; Add all autosaves in one directory, in order to keep everything clean
+
+(defvar emacs-autosave-directory
+  (concat user-emacs-directory "autosaves/")
+  "This variable dictates where to put auto saves. It is set to a directory
+called autosaves located wherever your .emacs.d/ is located.")
+
+;; Sets all files to be backed up and auto saved in a single directory.
+(setq backup-directory-alist `((".*" . ,emacs-autosave-directory))
+      auto-save-file-name-transforms `((".*" ,emacs-autosave-directory t)))
+
+;; Set the limitations for line length and tabs vs spaces etc
+
+(setq-default fill-column 76                    ; Maximum line width.
+              indent-tabs-mode nil              ; Use spaces instead of tabs.
+              split-width-threshold 100         ; Split verticly by default.
+              auto-fill-function 'do-auto-fill) ; Auto-fill-mode everywhere.
+
+;; Os Specifics
+;;    Use the Command key as our Meta
+
+(when (memq window-system '(mac ns))
+  (setq mac-option-modifier nil
+        mac-command-modifier 'meta
+        x-select-enable-clipboard t)
+  (exec-path-from-shell-initialize))
+
+;; Some mac-bindings interfere with Emacs bindings.
+(when (boundp 'mac-pass-command-to-system)
+  (setq mac-pass-command-to-system nil))
+
+;; Defaults
+   
+;;    Set the default encoding to UTF-8
+
+(set-language-environment "UTF-8")
+
+;; Use setq to set default startup variables to whatever we like
+
+(setq inhibit-startup-message t
+      initial-scratch-message nil
+      )
+
+;; Ido
+;;    The ido specifics
+
+(dolist (mode
+         '(ido-mode                   ; Interactivly do.
+           ido-everywhere             ; Use Ido for all buffer/file reading.
+           ido-vertical-mode          ; ido vertical
+           ))
+  (funcall mode 1))
+
+;; Sort the files shown in ido in prioritized order
+
+(setq ido-file-extension-order
+      '(".java" ".c" ".h" ".el" ".org"))
+
+;; Auto Complete
+
+;;     Enable the auto-complete that we downloaded with the package manager
+
+(require 'auto-complete-config)
+(ac-config-default)
+
+;; General code hooks
+     
+;;    For folding code we use the commands
+
+(defun hideshow-on ()
+  (local-set-key (kbd "C-c <right>") 'hs-show-block)
+  (local-set-key (kbd "C-c <left>") 'hs-hide-block)
+  (local-set-key (kbd "C-c <up>") 'hs-hide-level)
+  (local-set-key (kbd "C-c <down>") 'hs-show-all)
+  (hs-minor-mode t))
+
+;; And then add the hook to all C-like languages
+
+(add-hook 'c-mode-common-hook 'hideshow-on)
+
+;; The tidy function is an absolute gem. It Indents everything properly, and removes wasted
+;;    whitespace. Couldn't live without it
+
+(defun tidy ()
+  (interactive)
+  (let ((beg (if (region-active-p) (region-beginning) (point-min)))
+        (end (if (region-active-p) (region-end) (point-max))))
+    (whitespace-cleanup)
+    (indent-region beg end nil)
+    (untabify beg end)))
+
+;; Now bind the tidy function to =<C-tab>=
+
+(global-set-key (kbd "<C-tab>") 'tidy)
+
+;; Enable multiple cursors
+
+(global-set-key (kbd "C-S-c C-S-c") 'mc/edit-lines)
+(global-set-key (kbd "C->") 'mc/mark-next-like-this)
+(global-set-key (kbd "C-<") 'mc/mark-previous-like-this)
+(global-set-key (kbd "C-c C-<") 'mc/mark-all-like-this)
+
+;; Does not show the compilation buffer, unless there is an error
+
+(require 'cl)
+
+
+(defun brian-compile-finish (buffer outstr)
+  (unless (string-match "finished" outstr)
+    (switch-to-buffer-other-window buffer))
+  t)
+
+(setq compilation-finish-functions 'brian-compile-finish)
+
+
+(defadvice compilation-start
+    (around inhibit-display
+            (command &optional mode name-function highlight-regexp)) 
+  (if (not (string-match "^\\(find\\|grep\\)" command))
+      (flet ((display-buffer)
+             (set-window-point)
+             (goto-char)) 
+        (fset 'display-buffer 'ignore)
+        (fset 'goto-char 'ignore)
+        (fset 'set-window-point 'ignore)
+        (save-window-excursion 
+          ad-do-it))
+    ad-do-it))
+
+(ad-activate 'compilation-start)
+
+;; Add a function to bind the revert-buffer function
+
+(global-set-key (kbd "C-x C->") 'revert-buffer)
+
+;; Compilation
+;;    Add a compile hook for all c-like languages
+
+(defun c-setup()
+  (local-set-key (kbd "C-c C-c") 'compile))
+
+;; And now add the hook to all c-modes
+
+(add-hook 'c-mode-common-hook 'c-setup)
+
+;; Java-mode specifics
+
+;;    Defines the shortcuts used in java
+
+(defun java-shortcuts ()
+  (define-abbrev-table 'java-mode-abbrev-table
+    '(("psvm" "public static void main(String[] args) {" nil 0)
+      ("sin" "Scanner myScanner = new Scanner(" nil 0)
+      ("sop" "System.out.printf" nil 0)
+      ("sopl" "System.out.println" nil 0)))
+  (abbrev-mode t))
+
+;; Now we add the hook to be used in java only
+
+(add-hook 'java-mode-hook 'java-shortcuts)
+
+;; Defines a function that compiles java files, and binds it to =C-c C-c=
+
+(defun java-setup ()
+  (set (make-variable-buffer-local 'compile-command)
+       (concat "javac " (buffer-name)))
+  (local-set-key (kbd "C-c C-c") 'compile))
+
+;; Then we add the java hook
+
+(add-hook 'java-mode-hook 'java-setup)
+
+;; My own Java-hooks
+    
+;;     Runs the current java buffer in the emacs terminal
+
+(defun run-java-buffer ()
+  (interactive)
+  (eshell-command (concat "java " (substring (buffer-name) 0 -5)))
+  (local-set-key (kbd "<f6>") 'run-java-buffer))
+
+;; A function that binds replace-string to a keybind =undecided=
+
+(defun java-string-replace ()
+  (local-set-key (kbd "C-r") 'java-string-replace))
+
+(add-hook 'java-mode-hook 'java-string-replace)
+
+;; C
+;;    As we have already made sure that the yasnippet and auto-complete
+;;    packages are loaded,
+
+(add-hook 'c-mode--hook
+  (lambda() 
+    (local-set-key  (kbd "C-c o") 'ff-find-other-file)))
+
+;; Python
+   
+;;    Set the version to use, currently 3.4
+
+(setq python-shell-interpreter "/usr/local/bin/python3.4")
+
+;; Setup jedi
+
+(add-hook 'python-mode-hook 'jedi:setup)
+(setq jedi:complete-on-dot t)                 ; optional
+
+;; Org Mode
+
+;;    Setup the org mode so that the source code is themed as they would in
+;;    their native mode
+
+(setq org-src-fontify-natively t
+   org-confirm-babel-evaluate nil)
+
+;; Add support for java in org-mode
+
+(org-babel-do-load-languages
+    'org-babel-load-languages '((python . t) (java . t)))
+
+;; Setup agenda and org-links, copy with =C-c l= and
+;;    paste with =C-c C-l=
+;;    Also note the handy =C-u C-c C-l=
+
+(define-key global-map "\C-cl" 'org-store-link)
+(define-key global-map "\C-ca" 'org-agenda)
+(setq org-log-done t)
+
+;; Magit
+;;    magit bind magit-status to =C-x g=
+
+(global-set-key (kbd "C-x g") 'magit-status)
+
+;; Swift
+
+;;    Add flycheck to the swift mode
+
+(require 'flycheck)
+(add-to-list 'flycheck-checkers 'swift)
+
+;; Add an abbrev table for auto-complete (?)
+
+;;    You can run the command `swift-mode-run-repl' with =C-c C-z=
+
+(add-hook 'swift-mode-hook 'autopair-on)
+
+;; Add a the swift language to the auto-complete-list (Auto-Complete
+;;    package)
+
+(add-to-list 'ac-modes 'swift-mode)
+
+;; XCode Integration
+
+;;    Add a method from
+;;    http://bretthutley.com/programming/emacs/integrating-emacs-and-xcode/
+;;    to integrate compilation with xCode build
+
+(defun bh-compile ()
+  (interactive)
+  (let ((df (directory-files "."))
+        (has-proj-file nil)
+        )
+    (while (and df (not has-proj-file))
+      (let ((fn (car df)))
+        (if (> (length fn) 10)
+            (if (string-equal (substring fn -10) ".xcodeproj")
+                (setq has-proj-file t)
+              )
+          )
+        )
+      (setq df (cdr df))
+      )
+    (if has-proj-file
+        (compile "xcodebuild -configuration Debug")
+      (compile "make")
+      )
+    )
+  )
+
+;; Now add it to the swift mode, and keybind it to our usual compile =C-c
+;;    C-c=
+
+(defun swift-xcode-compile()
+  (local-set-key (kbd "C-c C-c") 'bh-compile))
+
+(add-hook 'swift-mode-hook 'swift-xcode-compile)
+
+;; Themes
+;;      Now choose a colour theme - Monokai for now
+
+(load-theme 'monokai t)
+
+;; Disables themes that are selected using =M-x load-theme=, so that there
+;;      is litter left hanging from the old theme
+
+(defadvice load-theme
+  (before disable-before-load (theme &optional no-confirm no-enable) activate) 
+  (mapc 'disable-theme custom-enabled-themes))
+
+;; Fonts  
+
+;;    Changes the default font
+
+(if (member "Source Code Pro" (font-family-list))
+  (set-face-attribute 'default nil :font "Source Code Pro-13")
+(set-frame-parameter nil 'font "DejaVu Sans Mono-12"))
