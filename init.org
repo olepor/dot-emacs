@@ -1,0 +1,569 @@
+
+#+BABEL: :cache yes
+#+PROPERTY: header-args :tangle yes :comments org
+
+#+TITLE: Emacs configuration file
+#+AUTHOR: Ole Petter Orhagen
+
+* About
+  
+  This is my Emacs configurations file, in the  spirit of Lars Tveito.
+  
+* TO DO
+** Hooks and modes
+   Have not added any hooks for python and jedi and magit
+* Configurations
+** Meta
+
+   Emacs can only load =.el=-files. We can use =C-c C-v t= to run
+   =org-babel-tangle=, which extracts the code blocks from the current =.org= file
+   into a =.el= file.
+
+   In order to avoid doing this each time over, every time a change is made, we can add a
+   function to the =after-save-hook= ensuring that we always tangle and byte-compile 
+   the =.org= document.
+
+   (Courtesy of Lars Tveito)
+    #+BEGIN_SRC emacs-lisp
+      (defun tangle-init ()
+        "If the current buffer is 'init.org' the code-blocks are
+          tangled, and the tangled file is compiled."
+        (when (equal (buffer-file-name)
+                     (expand-file-name (concat user-emacs-directory "init.org")))
+          ;; Avoid running hooks when tangling.
+          (let ((prog-mode-hook nil))
+            (org-babel-tangle)
+            (byte-compile-file (concat user-emacs-directory "init.el")))))
+
+      (add-hook 'after-save-hook 'tangle-init)
+    #+END_SRC
+
+    #+RESULTS:
+    | tangle-init |
+
+** Packages
+   
+   Managing extensions for Emacs is simplified using =package= which is built in to
+   Emacs 24 and newer. To load downloaded packages we need to initialise =package=.
+   =cl= is a libarary that contains many functions from Common Lisp, and comes in handy
+   quite often, so we want to make sure it's loaded, along with =package=, which is obviously 
+   needed.
+
+    #+BEGIN_SRC emacs-lisp
+      (setq package-archives
+            '(("gnu" . "http://elpa.gnu.org/packages/")
+              ("org" . "http://orgmode.org/elpa/")
+              ("MELPA" . "http://melpa.milkbox.net/packages/")))
+   #+END_SRC
+
+    #+RESULTS:
+
+
+
+   #+BEGIN_SRC emacs-lisp
+     (require 'cl)
+     (require 'package)
+     (setq package-enable-at-startup)
+     (package-initialize)
+    ;; (byte-recompile-directory (expand-file-name "~/.emacs.d") 0) ;; Byte
+     ;; compiles everything in my emacs.d directory, slow, but needed to get rid
+     ;; of the swift-mode-error
+   #+END_SRC
+
+
+   Define whether or not the newest version of a package is installed
+
+   #+BEGIN_SRC emacs-lisp
+     (let* ((packages '(auto-complete
+                        auto-compile ;; Automatically compiles an elisp file
+                        ido-vertical-mode
+                        monokai-theme ;; A fruity dark theme, originally from sublime ( I think )...
+                        leuven-theme ;; A nice light theme for daytime coding
+                        anchored-transpose ;; Fancy text editing
+                        expand-region ;; Expands a region based on ( " ...
+                        undo-tree ;; visually represents your undo's
+                        autopair ;; Highlights matching parantheses
+                        auto-package-update ;; Automatically update packages at a certain frequency. e.g once a week
+                        centered-window-mode ;; Centers the text if only one
+                        ;; window is showing
+                        jedi ;; Python auto-completion for emacs
+                        magit ;; Control git from emacs
+                        org ;;Outline based notes and management organizer
+                        swift-mode ;; Major mode for Apple's swift
+                        ;; programming language
+                        ;;  flycheck ;; On the fly spell checking for emacs ;; 
+                        ))
+            (packages (remove-if 'package-installed-p packages)))
+       (when packages
+         (package-refresh-contents)
+         (mapc 'package-install packages)))
+   #+END_SRC
+
+   Add theme list from elpa directory
+#+BEGIN_SRC emacs-lisp
+  (add-to-list 'custom-theme-load-path "~/.emacs.d/themes")
+#+END_SRC
+   
+   Enable ido, which changes the way files are selected in the minibuffer, everywhere
+   and at last show it vertically
+
+   #+BEGIN_SRC emacs-lisp
+     (ido-mode 1)
+     (ido-everywhere 1)
+     (ido-vertical-mode 1)
+  #+END_SRC
+
+
+   Enable the expand region package
+
+   #+BEGIN_SRC emacs-lisp
+     (global-set-key (kbd "C-=") 'er/expand-region)
+   #+END_SRC
+   
+   Set the undo-tree-mode globally
+
+   #+BEGIN_SRC emacs-lisp
+     (global-undo-tree-mode 1)
+   #+END_SRC emacs-lisp
+   
+   Set the autopair parenthesis on 
+
+   #+BEGIN_SRC emacs-lisp
+     (require 'autopair)
+     (defvar autopair-modes '(r-mode java-mode))
+     (defun turn-on-autopair-mode ()
+       (autopair-mode 1))
+     (dolist (mode autopair-modes) (add-hook (intern (concat (symbol-name mode) "-hook")) 'turn-on-autopair-mode))
+   #+END_SRC
+   
+   Set the auto-update-packages interval to 7 days. Add =(auto-package-update-maybe)= for å skru på 
+   #+BEGIN_SRC emacs-lisp
+     (require 'auto-package-update)
+     (setq auto-package-update-interval 7)
+   #+END_SRC
+
+   #+RESULTS:
+
+   #+BEGIN_SRC emacs-lisp
+     (require 'centered-window-mode)
+     (centered-window-mode t)
+     (visual-line-mode t)
+   #+END_SRC
+
+** Simple Emacs setup
+
+   Loops a list of everything we wish to enable (e.g set to 1)
+
+   #+BEGIN_SRC emacs-lisp
+     (dolist (mode '(show-paren-mode ;; Shows matching parenthesis
+                     show-column-number ;; Show column number in mode line / Genius
+                     delete-selection-mode ;; Deletes marked text
+                     global-undo-tree-mode ;; Sets the undo tree mode to global
+                     auto-compile-on-load-mode ;; Auto compiles elisp on load
+                     )) 
+       (when (fboundp mode)
+         (funcall mode 1)))
+                     
+                     
+   #+END_SRC
+
+   #+BEGIN_SRC emacs-lisp
+     (dolist (mode '(blink-cursor-mode ;; Disables the blinking cursor
+                     menu-bar-mode ;; Removes the toolbar
+                     tool-bar-mode ;; Turns the toolbar off
+                     scroll-bar-mode ;; NO SCROLLBARS
+                     ))
+         (funcall mode 0))
+   #+END_SRC
+  
+
+   Answer with y/n instead of yes or no
+   #+BEGIN_SRC emacs-lisp
+     (fset 'yes-or-no-p 'y-or-n-p)
+   #+END_SRC
+
+   Make a keybind to kill the current buffer, and bind it to =C-x C-k=
+   #+BEGIN_SRC emacs-lisp
+     (global-set-key (kbd "C-x C-k") 'kill-this-buffer)
+   #+END_SRC
+
+   Comment or uncomment a region
+   #+BEGIN_SRC emacs-lisp
+     (global-set-key (kbd "C-;") 'comment-or-uncomment-region)
+   #+END_SRC
+   
+   Add all autosaves in one directory, in order to keep everything clean
+   #+BEGIN_SRC emacs-lisp
+     (defvar emacs-autosave-directory
+       (concat user-emacs-directory "autosaves/")
+       "This variable dictates where to put auto saves. It is set to a directory
+     called autosaves located wherever your .emacs.d/ is located.")
+
+     ;; Sets all files to be backed up and auto saved in a single directory.
+     (setq backup-directory-alist `((".*" . ,emacs-autosave-directory))
+           auto-save-file-name-transforms `((".*" ,emacs-autosave-directory t)))
+   #+END_SRC
+
+Set the limitations for line length and tabs vs spaces etc
+#+BEGIN_SRC emacs-lisp
+  (setq-default fill-column 76                    ; Maximum line width.
+                indent-tabs-mode nil              ; Use spaces instead of tabs.
+                split-width-threshold 100         ; Split verticly by default.
+                auto-fill-function 'do-auto-fill) ; Auto-fill-mode everywhere.
+#+END_SRC
+
+** Os Specifics
+   Use the Command key as our Meta
+   #+BEGIN_SRC emacs-lisp
+     (when (memq window-system '(mac ns))
+       (setq mac-option-modifier nil
+             mac-command-modifier 'meta
+             x-select-enable-clipboard t)
+       (exec-path-from-shell-initialize))
+   #+END_SRC
+
+   #+BEGIN_SRC emacs-lisp
+     ;; Some mac-bindings interfere with Emacs bindings.
+     (when (boundp 'mac-pass-command-to-system)
+       (setq mac-pass-command-to-system nil))
+   #+END_SRC
+
+** Defaults
+   
+   Set the default encoding to UTF-8
+   #+BEGIN_SRC emacs-lisp
+     (set-language-environment "UTF-8")
+   #+END_SRC
+   Use setq to set default startup variables to whatever we like
+   #+BEGIN_SRC emacs-lisp
+     (setq inhibit-startup-message t
+           initial-scratch-message nil
+           )
+   #+END_SRC
+** Ido
+   The ido specifics
+
+   #+BEGIN_SRC emacs-lisp
+     (dolist (mode
+              '(ido-mode                   ; Interactivly do.
+                ido-everywhere             ; Use Ido for all buffer/file reading.
+                ido-vertical-mode          ; ido vertical
+                ))
+       (funcall mode 1))
+    #+END_SRC
+   
+  Sort the files shown in ido in prioritized order
+
+  #+BEGIN_SRC emacs-lisp
+    (setq ido-file-extension-order
+          '(".java" ".c" ".h" ".el" ".org"))
+  #+END_SRC
+   
+** Auto Complete
+
+    Enable the auto-complete that we downloaded with the package manager
+
+   #+BEGIN_SRC emacs-lisp
+     (require 'auto-complete-config)
+     (ac-config-default)
+   #+END_SRC
+ 
+** General code hooks
+     
+   For folding code we use the commands
+   #+BEGIN_SRC emacs-lisp
+     (defun hideshow-on ()
+       (local-set-key (kbd "C-c <right>") 'hs-show-block)
+       (local-set-key (kbd "C-c <left>") 'hs-hide-block)
+       (local-set-key (kbd "C-c <up>") 'hs-hide-level)
+       (local-set-key (kbd "C-c <down>") 'hs-show-all)
+       (hs-minor-mode t))
+   #+END_SRC
+
+   And then add the hook to all C-like languages
+   #+BEGIN_SRC emacs-lisp
+     (add-hook 'c-mode-common-hook 'hideshow-on)
+   #+END_SRC
+
+
+   The tidy function is an absolute gem. It Indents everything properly, and removes wasted
+   whitespace. Couldn't live without it
+   #+BEGIN_SRC emacs-lisp
+     (defun tidy ()
+       (interactive)
+       (let ((beg (if (region-active-p) (region-beginning) (point-min)))
+             (end (if (region-active-p) (region-end) (point-max))))
+         (whitespace-cleanup)
+         (indent-region beg end nil)
+         (untabify beg end)))
+   #+END_SRC
+
+   Now bind the tidy function to =<C-tab>=
+   #+BEGIN_SRC emacs-lisp
+     (global-set-key (kbd "<C-tab>") 'tidy)
+   #+END_SRC
+   
+   Enable multiple cursors  
+   #+BEGIN_SRC emacs-lisp
+     (global-set-key (kbd "C-S-c C-S-c") 'mc/edit-lines)
+     (global-set-key (kbd "C->") 'mc/mark-next-like-this)
+     (global-set-key (kbd "C-<") 'mc/mark-previous-like-this)
+     (global-set-key (kbd "C-c C-<") 'mc/mark-all-like-this)
+   #+END_SRC
+
+   Does not show the compilation buffer, unless there is an error
+   #+BEGIN_SRC emacs-lisp
+     (require 'cl)
+
+
+     (defun brian-compile-finish (buffer outstr)
+       (unless (string-match "finished" outstr)
+         (switch-to-buffer-other-window buffer))
+       t)
+
+     (setq compilation-finish-functions 'brian-compile-finish)
+
+
+     (defadvice compilation-start
+         (around inhibit-display
+                 (command &optional mode name-function highlight-regexp)) 
+       (if (not (string-match "^\\(find\\|grep\\)" command))
+           (flet ((display-buffer)
+                  (set-window-point)
+                  (goto-char)) 
+             (fset 'display-buffer 'ignore)
+             (fset 'goto-char 'ignore)
+             (fset 'set-window-point 'ignore)
+             (save-window-excursion 
+               ad-do-it))
+         ad-do-it))
+
+     (ad-activate 'compilation-start)
+   #+END_SRC
+
+   Add a function to bind the revert-buffer function
+   #+BEGIN_SRC emacs-lisp
+     (global-set-key (kbd "C-x C->") 'revert-buffer)
+   #+END_SRC
+   
+** Compilation
+   Add a compile hook for all c-like languages
+   #+BEGIN_SRC emacs-lisp
+     (defun c-setup()
+       (local-set-key (kbd "C-c C-c") 'compile))
+   #+END_SRC
+   
+   And now add the hook to all c-modes
+   #+BEGIN_SRC emacs-lisp
+     (add-hook 'c-mode-common-hook 'c-setup)
+   #+END_SRC
+
+** Java-mode specifics
+
+   Defines the shortcuts used in java
+
+    #+BEGIN_SRC emacs-lisp
+      (defun java-shortcuts ()
+        (define-abbrev-table 'java-mode-abbrev-table
+          '(("psvm" "public static void main(String[] args) {" nil 0)
+            ("sin" "Scanner myScanner = new Scanner(" nil 0)
+            ("sop" "System.out.printf" nil 0)
+            ("sopl" "System.out.println" nil 0)))
+        (abbrev-mode t))
+   #+END_SRC
+   
+   Now we add the hook to be used in java only
+   #+BEGIN_SRC emacs-lisp
+     (add-hook 'java-mode-hook 'java-shortcuts)
+   #+END_SRC
+
+ Defines a function that compiles java files, and binds it to =C-c C-c=
+   #+BEGIN_SRC emacs-lisp
+     (defun java-setup ()
+       (set (make-variable-buffer-local 'compile-command)
+            (concat "javac " (buffer-name)))
+       (local-set-key (kbd "C-c C-c") 'compile))
+   #+END_SRC
+
+   Then we add the java hook
+   #+BEGIN_SRC emacs-lisp
+     (add-hook 'java-mode-hook 'java-setup)
+   #+END_SRC
+
+** My own Java-hooks
+    
+    Runs the current java buffer in the emacs terminal
+
+    #+BEGIN_SRC emacs-lisp
+      (defun run-java-buffer ()
+        (interactive)
+        (eshell-command (concat "java " (substring (buffer-name) 0 -5)))
+        (local-set-key (kbd "<f6>") 'run-java-buffer))
+
+   #+END_SRC
+
+    A function that binds replace-string to a keybind =undecided=
+
+    #+BEGIN_SRC emacs-lisp
+         (defun java-string-replace ()
+           (local-set-key (kbd "C-r") 'java-string-replace))
+   #+END_SRC
+
+   #+BEGIN_SRC emacs-lisp
+     (add-hook 'java-mode-hook 'java-string-replace)
+   #+END_SRC 
+** C
+   As we have already made sure that the yasnippet and auto-complete
+   packages are loaded, 
+
+   #+BEGIN_SRC emacs-lisp
+     (add-hook 'c-mode--hook
+       (lambda() 
+         (local-set-key  (kbd "C-c o") 'ff-find-other-file)))
+   #+END_SRC
+
+** Python
+   
+   Set the version to use, currently 3.4
+   #+BEGIN_SRC emacs-lisp
+     (setq python-shell-interpreter "/usr/local/bin/python3.4")
+   #+END_SRC
+
+   Setup jedi 
+   #+BEGIN_SRC emacs-lisp
+     (add-hook 'python-mode-hook 'jedi:setup)
+     (setq jedi:complete-on-dot t)                 ; optional
+   #+END_SRC
+   
+** Self written stuff
+   
+** Org Mode
+
+   Setup the org mode so that the source code is themed as they would in
+   their native mode
+
+   #+BEGIN_SRC emacs-lisp
+        (setq org-src-fontify-natively t
+           org-confirm-babel-evaluate nil)
+   #+END_SRC 
+
+   Add support for java in org-mode
+
+   #+BEGIN_SRC emacs-lisp
+     (org-babel-do-load-languages
+         'org-babel-load-languages '((python . t) (java . t)))
+   #+END_SRC
+
+   Setup agenda and org-links, copy with =C-c l= and
+   paste with =C-c C-l=
+   Also note the handy =C-u C-c C-l=
+
+   #+BEGIN_SRC emacs-lisp
+  (define-key global-map "\C-cl" 'org-store-link)
+  (define-key global-map "\C-ca" 'org-agenda)
+  (setq org-log-done t)
+   #+END_SRC
+   
+** Magit
+   magit bind magit-status to =C-x g=
+   #+BEGIN_SRC emacs-lisp
+     (global-set-key (kbd "C-x g") 'magit-status)
+   #+END_SRC
+   
+** Swift
+
+   Add flycheck to the swift mode
+   #+BEGIN_SRC emacs-lisp
+     (require 'flycheck)
+     (add-to-list 'flycheck-checkers 'swift)
+   #+END_SRC
+   
+   Add an abbrev table for auto-complete (?)
+
+   You can run the command `swift-mode-run-repl' with =C-c C-z=
+
+   #+BEGIN_SRC emacs-lisp
+     (add-hook 'swift-mode-hook 'autopair-on)
+   #+END_SRC
+
+   Add a the swift language to the auto-complete-list (Auto-Complete
+   package)
+
+   #+BEGIN_SRC emacs-lisp
+     (add-to-list 'ac-modes 'swift-mode)
+   #+END_SRC
+
+
+** XCode Integration
+
+   Add a method from
+   http://bretthutley.com/programming/emacs/integrating-emacs-and-xcode/
+   to integrate compilation with xCode build
+
+   #+BEGIN_SRC emacs-lisp
+
+     (defun bh-compile ()
+       (interactive)
+       (let ((df (directory-files "."))
+             (has-proj-file nil)
+             )
+         (while (and df (not has-proj-file))
+           (let ((fn (car df)))
+             (if (> (length fn) 10)
+                 (if (string-equal (substring fn -10) ".xcodeproj")
+                     (setq has-proj-file t)
+                   )
+               )
+             )
+           (setq df (cdr df))
+           )
+         (if has-proj-file
+             (compile "xcodebuild -configuration Debug")
+           (compile "make")
+           )
+         )
+       )
+   #+END_SRC
+
+   Now add it to the swift mode, and keybind it to our usual compile =C-c
+   C-c=
+
+   #+BEGIN_SRC emacs-lisp
+     (defun swift-xcode-compile()
+       (local-set-key (kbd "C-c C-c") 'bh-compile))
+   #+END_SRC
+
+   #+BEGIN_SRC emacs-lisp
+     (add-hook 'swift-mode-hook 'swift-xcode-compile)
+   #+END_SRC
+   
+* Beautify
+** Themes
+     Now choose a colour theme - Monokai for now   
+   #+BEGIN_SRC emacs-lisp
+     (load-theme 'monokai t)
+   #+END_SRC
+
+     Disables themes that are selected using =M-x load-theme=, so that there
+     is litter left hanging from the old theme
+   #+BEGIN_SRC emacs-lisp
+     (defadvice load-theme
+       (before disable-before-load (theme &optional no-confirm no-enable) activate) 
+       (mapc 'disable-theme custom-enabled-themes))
+   #+END_SRC
+   
+** Fonts  
+
+   Changes the default font
+ 
+    #+BEGIN_SRC emacs-lisp
+      (if (member "Source Code Pro" (font-family-list))
+        (set-face-attribute 'default nil :font "Source Code Pro-13")
+      (set-frame-parameter nil 'font "DejaVu Sans Mono-12"))
+
+   #+END_SRC
+
+
+  
+
+   
