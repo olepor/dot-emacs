@@ -1,3 +1,27 @@
+;; packages
+(setq package-archives '(("gnu" . "http://elpa.gnu.org/packages/")
+                         ("org" . "http://orgmode.org/elpa/")
+                        ("marmalade" . "http://marmalade-repo.org/packages/")
+                         ("melpa-stable" . "http://melpa-stable.milkbox.net/packages/")))
+(package-initialize)
+
+(defun require-package (package)
+  (setq-default highlight-tabs t)
+  "Install given PACKAGE."
+  (unless (package-installed-p package)
+    (unless (assoc package package-archive-contents)
+      (package-refresh-contents))
+    (package-install package)))
+
+(package-initialize)
+(evil-mode 1)
+;; enable evil-mode(setq evil-emacs-state-cursor '("red" box))
+(setq evil-normal-state-cursor '("green" box))
+(setq evil-visual-state-cursor '("orange" box))
+(setq evil-insert-state-cursor '("red" bar))
+(setq evil-replace-state-cursor '("red" bar))
+(setq evil-operator-state-cursor '("red" hollow))
+
 ;; Keys
 ;; C-u C-<spc> ;; jump back in mark ring
 (blink-cursor-mode -1) ;;Disable the blinking cursor
@@ -63,3 +87,10 @@
        (set-face-attribute 'default nil :font "Source Code pro-13"))
       ((member "Inconsolata" (font-family-list))
        (set-face-attribute 'default nil :font "Inconsolata-14")))
+
+;; Org-mode
+;; The following lines are always needed.  Choose your own keys.
+ (global-set-key "\C-cl" 'org-store-link)
+ (global-set-key "\C-ca" 'org-agenda)
+ (global-set-key "\C-cc" 'org-capture)
+ (global-set-key "\C-cb" 'org-iswitchb)	
