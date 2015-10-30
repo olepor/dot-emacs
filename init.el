@@ -11,6 +11,10 @@
 
 ;;    (Courtesy of Lars Tveito)
 
+;; Devilry-mode
+(add-to-list 'load-path "~/.emacs.d/plugins/devilry-mode/")
+(require 'devilry-mode)
+
 (defun tangle-init ()
   "If the current buffer is 'init.org' the code-blocks are
     tangled, and the tangled file is compiled."
