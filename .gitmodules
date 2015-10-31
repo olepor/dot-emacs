@@ -1,0 +1,6 @@
+[submodule "devilry-mode"]
+	path = devilry-mode
+	url = https://github.com/MathiasCiarlo/devilry-mode.git
+[submodule "Devilry_sort"]
+	path = Devilry_sort
+	url = https://github.com/gardir/Devilry_sort.git
