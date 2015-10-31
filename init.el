@@ -445,5 +445,9 @@ called autosaves located wherever your .emacs.d/ is located.")
   (set-face-attribute 'default nil :font "Source Code Pro-13")
 (set-frame-parameter nil 'font "DejaVu Sans Mono-12"))
 
+;; uncompress files
+(eval-after-load "dired-aux"
+   '(add-to-list 'dired-compress-file-suffixes 
+                 '("\\.zip\\'" ".zip" "unzip")))
 
  

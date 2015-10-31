@@ -21,3 +21,7 @@ session*
 .cask
 tramp
 /var/pcache
+Devilry_sort/
+ac-comphist.dat
+autosaves
+plugins/
